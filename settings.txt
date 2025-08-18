@@ -1,0 +1,3 @@
+case - sensitive
+whole word - false
+show full path - no
