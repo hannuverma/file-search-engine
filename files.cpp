@@ -125,8 +125,10 @@ bool checkFile(std::string fileName) // just a function to tell if the file was 
 	inFile.close();
 	return true;
 }
-
-std::ifstream searchFile( std::string fileName, std::string keyword, bool caseSenstive, bool wholeWord, int& totalMatches, bool showFullPath)
+bool isWordChar(char c) {
+	return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
+}
+std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSenstive, bool wholeWord, int& totalMatches, bool showFullPath)
 {
 	std::ifstream inFile(fileName);
 	std::string line;
@@ -143,8 +145,8 @@ std::ifstream searchFile( std::string fileName, std::string keyword, bool caseSe
 	{
 		return inFile;
 	}
-	if(showFullPath)
-		std::cout << "The following instances of \033[34m" << keyword << "\033[0m were found in the file \033[34m" << fileName <<"\033[0m\n";
+	if (showFullPath)
+		std::cout << "The following instances of \033[34m" << keyword << "\033[0m were found in the file \033[34m" << fileName << "\033[0m\n";
 
 	else
 	{
@@ -161,77 +163,133 @@ std::ifstream searchFile( std::string fileName, std::string keyword, bool caseSe
 		i++; // to tell which line in the txt file the keyword was found
 
 
-		if (caseSenstive) 
+		if (caseSenstive)
 		{
+			size_t start = 0;
+			bool firstPrint = true;
 
-			if (line.find(keyword) != std::string::npos)
+			if (!(line).find(keyword))
 			{
 
+				while (true) {
+					size_t pos = line.find(keyword, start);
+					if (pos == std::string::npos)
+					{
+						// print rest of line
+						std::cout << line.substr(start);
+						break;
+					}
 
-				size_t pos = line.find(keyword); // the position of the keyword
+					auto isWordChar = [](char c) {
+						return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
+						};
 
-				if (wholeWord && pos == 0) 
-				{
-					keyword = keyword + " ";
+					bool valid = true;
+
+					// before
+					if (pos > 0 && isWordChar(line[pos - 1])) {
+						valid = false;
+					}
+
+					// after
+					size_t afterPos = pos + keyword.length();
+					if (afterPos < line.length() && isWordChar(line[afterPos])) {
+						valid = false;
+					}
+
+					if (wholeWord && !valid) {
+						// Not a whole word  just print normally
+						start = pos + keyword.length();
+						continue;
+					}
+					else {
+						if (firstPrint) {
+							std::cout << i << ". "; // print line number only once
+							firstPrint = false;
+						}
+
+						// print text before keyword
+						std::cout << line.substr(start, pos - start);
+
+						// print highlighted keyword
+						std::cout << "\033[31;4m" << line.substr(pos, keyword.length()) << "\033[0m";
+
+						totalMatches++;
+						found = true;
+
+						// move past this keyword
+						start = pos + keyword.length();
+					}
 				}
-				else if (wholeWord && pos != 0)
-				{
-					keyword = " " + keyword + " ";
-				}
 
-				std::cout << i << ". ";
-
-				std::cout << line.substr(0, pos); // break the line into three parts - before the keyword
-
-				std::cout << "\033[31m" << keyword << "\033[0m"; // the keyword that is red and underlined
-
-				std::cout << line.substr(pos + keyword.length()) << '\n'; // after the keyword
-
-				totalMatches++;
-				found = true;
+				std::cout << '\n';
 			}
 		}
 		else
 		{
-			keyword2 = changeToLowerCase(keyword); // as its case insensitive we changed everything to lower case 
+			keyword2 = changeToLowerCase(keyword); // lowercase keyword for case-insensitivity
+			std::string lowerLine = changeToLowerCase(line); // lowercase copy of line
 
+			size_t start = 0;
+			bool firstPrint = true;
 
-			if (changeToLowerCase(line).find(keyword2) != std::string::npos)
+			if (!changeToLowerCase(line).find(keyword2))
 			{
+				while (true) {
+					size_t pos = lowerLine.find(keyword2, start);
+					if (pos == std::string::npos)
+					{
+						// print rest of line
+						std::cout << line.substr(start);
+						break;
+					}
+					auto isWordChar = [](char c) {
+						return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
+						};
 
-				size_t pos = changeToLowerCase(line).find(keyword2);
-				if (pos != std::string::npos)
-				{
 					bool valid = true;
 
-					// Check char before
-					if (pos > 0 && std::isalnum(static_cast<unsigned char>(line[pos - 1]))) // checking if the char before and after the keyword is alphanumeric to tell if its a whole word or not
-					{
+					// before
+					if (pos > 0 && isWordChar(line[pos - 1])) {
 						valid = false;
 					}
 
-					// Check char after
-					if (pos + keyword.length() < line.length() &&
-						std::isalnum(static_cast<unsigned char>(line[pos + keyword.length()])))
-					{
+					// after
+					size_t afterPos = pos + keyword.length();
+					if (afterPos < line.length() && isWordChar(line[afterPos])) {
 						valid = false;
 					}
 
-					if (wholeWord && !valid) // this takes all the cases where the matching word wont be considered 
-					{
+					if (wholeWord && !valid) {
+						// Not a whole word  just print normally
+						start = pos + keyword.length();
+						continue;
 					}
-					else
-					{
-						std::cout << i << ". ";
-						std::cout << line.substr(0, pos);
+					else {
+						if (firstPrint) {
+							std::cout << '\n';
+							std::cout << i << ". "; // print line number only once
+							firstPrint = false;
+						}
+
+						// print text before keyword
+						std::cout << line.substr(start, pos - start);
+
+						// print highlighted keyword
 						std::cout << "\033[31;4m" << line.substr(pos, keyword.length()) << "\033[0m";
-						std::cout << line.substr(pos + keyword.length()) << '\n';
 
 						totalMatches++;
 						found = true;
+
+						// move past this keyword
+						start = pos + keyword.length();
 					}
 				}
+
+
 			}
+
+
 		}
 
 
@@ -244,7 +302,7 @@ std::ifstream searchFile( std::string fileName, std::string keyword, bool caseSe
 		std::cout << keyword << " not found in the file: " << fileNameT << '\n';
 	}
 
-	std::cout << "Total " << "\033[32m" << totalMatches << "\033[0m" << " matches\n";
+	std::cout << "\nTotal " << "\033[32m" << totalMatches << "\033[0m" << " matches\n";
 
 	inFile.close();
 
@@ -252,7 +310,6 @@ std::ifstream searchFile( std::string fileName, std::string keyword, bool caseSe
 
 	return inFile;
 }
-
 std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wholeWord, bool& showFullPath)
 {
 	std::string line;
