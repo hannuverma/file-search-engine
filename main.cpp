@@ -4,6 +4,7 @@
 #include <cctype> 
 #include <algorithm>
 #include <vector>
+#include <array>
 
 using namespace std;
 
@@ -15,12 +16,31 @@ std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSen
 std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wholeWord, bool& logicAnd);
 std::ifstream readFile(const std::string& fileName);
 std::ifstream writeSettings(const std::string& fileName, int settingChange, bool caseSenstive, bool wholeWord, bool logicAnd);
-bool checkFile(std::string fileName);
-bool FileIsEmpty(const std::string& fileName);
+bool fileOpened(std::string fileName);
 std::ofstream deleteData(const std::string& fileName);
 std::ofstream writeHistory(std::string& fileName, std::string sHistoryKeyword, std::string sHistoryFile, int aTotalMatches);
 void extractHistoryEntry(const std::string& line, std::string& keyword, std::string& filename, int& totalMatches);
 
+
+struct historyHandler
+{
+	string sHistoryFile;
+	string sHistoryKeyword;
+	int aTotalMatches;
+};
+struct inputHandler
+{
+	string IFile;
+	string keyword;
+	string IFileT;
+};
+struct settingsHandler
+{
+	bool caseSenstive = false;
+	int settingChange{}; // which setting needs to be changed
+	bool wholeWord = false;
+	bool showFullPath = false;
+};
 
 std::string trimQuotes(const std::string& path) // if user accidently put the address between quotes because thats how it showed in properties 
 {
@@ -40,8 +60,6 @@ std::string trimQuotes(const std::string& path) // if user accidently put the ad
 	}
 	return path2;
 }
-
-
 string changeToLowerCase(const string input) // this is being used when the setting is case insensitive we basically change everything to lowercase 
 {
 	string lineL; // line that will be lower case
@@ -56,127 +74,168 @@ string changeToLowerCase(const string input) // this is being used when the sett
 	return lineL;
 }
 
+
 int main()
 {
-	string IFile;  // the input file which is being searched
-	string keyword; // the keyword that is being searched
-	bool caseSenstive = false; 
-	int settingChange{}; // which setting needs to be changed
-	bool wholeWord = false; 
-	bool showFullPath = false;
+	array<string, 9> acceptableCommands = { " " ,"" ,"h", "history", "s", "settings", "setting", "done" };
 
-	const int maxHistory{ 100 };
-	string sHistoryKeyword[maxHistory]; // keeping history of keywords
-	string sHistoryFile[maxHistory]; // keeping history of file names
-	int historyNumber{}; // keeping track of the number of histories taken
-	int totalMatches{}; 
-	int aTotalMatches[maxHistory]{};
-	int numberOfFiles{};
+	vector<historyHandler> history;
+	inputHandler input;
+	settingsHandler settingsS;
+
+	int historyNumber{};
+	int totalMatches{};
 	int grandTotalMatches{};
 
 	vector<string> allFiles;
 
 	ifstream file(historyFile);
 	string line;
-	while (getline(file, line) && historyNumber < maxHistory)
+
+	//extract history from txt file
+	while (getline(file, line))
 	{
-		extractHistoryEntry(line, sHistoryKeyword[historyNumber], sHistoryFile[historyNumber], aTotalMatches[historyNumber]);
+		string hKeywordT;
+		string hFileT;
+		int hMatchesT{};
+		extractHistoryEntry(line, hKeywordT, hFileT, hMatchesT);
+
+		history.push_back({ hFileT, hKeywordT, hMatchesT });
 		historyNumber++;
 	}
-
-	
-
+	file.close();
 
 	while (true)
 	{
-		grandTotalMatches = 0;
-		numberOfFiles = 1;
+		grandTotalMatches = 0;//resetting everything for a fresh start
 		allFiles.clear();
 
-		settings(settingFile, caseSenstive, wholeWord, showFullPath); // checking the settings 
+		settings(settingFile, settingsS.caseSenstive, settingsS.wholeWord, settingsS.showFullPath); // checking the settings 
 
-
-		while (true)
+		// taking inputs
+		while (true) 
 		{
-			
-			cout << "Enter the full address of the file: ";
-			std::getline(cin >> ws, IFile); // inputing the file address
 
-			if (IFile == "" || IFile == " " || changeToLowerCase(IFile) == "done" || changeToLowerCase(IFile) == "setting" || changeToLowerCase(IFile) == "settings" || changeToLowerCase(IFile) == "s" || changeToLowerCase(IFile) == "history" || changeToLowerCase(IFile) == "h")
+			cout << "Enter the full address of the file: ";
+			std::getline(cin >> ws, input.IFileT); // inputing the file address
+
+			input.IFileT = trimQuotes(input.IFileT);//we dont want quotes any ways so why keep them
+			input.IFile = changeToLowerCase(input.IFileT); //changing IFile to lower which will help with commands while IFileT remains same
+
+
+			if (std::find(acceptableCommands.begin(), acceptableCommands.end(), input.IFile) != acceptableCommands.end())
 			{
 				break;
 			}
 			else
 			{
-				if(checkFile(trimQuotes(IFile)))
-					allFiles.push_back(trimQuotes(IFile));
+				if (fileOpened((input.IFileT)))
+					allFiles.push_back((input.IFileT));//we want to use the file which is not changed to lower case
 			}
 
-			numberOfFiles++;
 
 		}
 
-
-		if (changeToLowerCase(IFile) == "setting" || changeToLowerCase(IFile) == "settings" || changeToLowerCase(IFile) == "s")
+		//open settings menu
+		if ((input.IFile) == "setting" || (input.IFile) == "settings" || (input.IFile) == "s") 
 		{
+			while(true)
 			{
-				readFile(settingFile);
+				string settingChangeInputT;//making the input idiot proof 
+				readFile(settingFile);//outputting the settings 
 
 				cout << "Enter 1 to change the case settings \n";
 				cout << "Enter 2 to change the whole word search settings \n";
 				cout << "Enter 3 to change show full path setting \n";
 				cout << "Enter 9 to exit \n";
-				cin >> settingChange;
+				getline(cin >> ws, settingChangeInputT);
 
+				if (!settingChangeInputT.empty() && std::all_of(settingChangeInputT.begin(), settingChangeInputT.end(), ::isdigit))
+				{
+					settingsS.settingChange = stoi(settingChangeInputT);//changing string to int
 
-				writeSettings(settingFile, settingChange, caseSenstive, wholeWord, showFullPath);
+					writeSettings(settingFile, settingsS.settingChange, settingsS.caseSenstive, settingsS.wholeWord, settingsS.showFullPath);
+					break;
+				}
+
+				else
+				{
+					cout << "\033[31;4menter a valid number!!!\033[0m";
+				}
 			}
-			readFile(settingFile);
+			readFile(settingFile);//outputting the new setting
+		}
 
+		//open history menu
+		else if (((input.IFile) == "history" || (input.IFile) == "h"))//open history menu
+		{
+			while (true)
+			{
+				if (history.empty())
+				{
+					cout << "history is empty\n";
+					break;
+				}
+				string historyLine{};//for idiot proofing
+
+				for (int i{}; i < historyNumber; i++) // to output the different strings we have in the arrays for history 
+				{
+					cout << '\n' << i + 1 << ": " << history[i].sHistoryKeyword << " - " << history[i].sHistoryFile << " - total matches = " << history[i].aTotalMatches << '\n'; 
+				}
+
+				cout << "Enter the line number which you want to re-search or enter escape or e to exit: ";
+				cin >> historyLine;
+				int historyL{};
+				
+				if (!historyLine.empty() && std::all_of(historyLine.begin(), historyLine.end(), ::isdigit)) // checking if input is a numerical value and not out of bound
+				{
+
+					historyL = stoi(historyLine);
+
+					if (historyL <= history.size())
+					{
+						searchFile(history[historyL - 1].sHistoryFile, history[historyL - 1].sHistoryKeyword, settingsS.caseSenstive, settingsS.wholeWord, totalMatches, settingsS.showFullPath); // -1 because arrays start from 0 so if the user had entered 3 than the array value should be 2
+						break;
+					}
+					else
+					{
+						cout << "\033[31;4menter a valid number!!!\033[0m";
+					}
+				}
+
+				else if (changeToLowerCase(historyLine) == "delete")
+				{
+					deleteData(historyFile);
+					history.clear();
+					historyNumber = 0;
+					break;
+				}
+				else
+				{
+					break;
+				}
+			}
 
 		}
 
-		else if ((changeToLowerCase(IFile) == "history" || changeToLowerCase(IFile) == "h") && FileIsEmpty)
+		//for keywords in file
+		else //for keywords in file
 		{
-			string historyLine{};
-
-			for (int i{}; i < historyNumber; i++) // to output the different strings we have in the arrays for history 
-			{
-				cout << '\n' << i + 1 << ": " << sHistoryKeyword[i] << " - " << sHistoryFile[i] << " - total matches = " << aTotalMatches[i] << '\n';
-			}
-
-			cout << "Enter the line number which you want to re-search or enter escape or e to exit: ";
-			cin >> historyLine;
-			int historyL{};
-
-			if (!historyLine.empty() && std::all_of(historyLine.begin(), historyLine.end(), ::isdigit)) // checking if input is a numerical value
-			{
-				historyL = stoi(historyLine);
-				searchFile(sHistoryFile[historyL - 1], sHistoryKeyword[historyL - 1], caseSenstive, wholeWord, totalMatches, showFullPath); // -1 because arrays start from 0 so if the user had entered 3 than the array value should be 2
-			}
-
-		}
-
-
-		else // checking if file opened without any problems
-		{
-
 			cout << "Enter the keyword to find: ";
-			std::getline(cin >> ws, keyword); // input for the keyword to search
+			std::getline(cin >> ws, input.keyword); // input for the keyword to search
 
-			for (int i{}; i < allFiles.size(); i++)
+			for (int i{}; i < allFiles.size(); i++) // for multiple files
 			{
-				searchFile(allFiles[i], keyword, caseSenstive, wholeWord, totalMatches, showFullPath); // searching the file while removing the quotes and checking the settings 
+				searchFile(allFiles[i], input.keyword, settingsS.caseSenstive, settingsS.wholeWord, totalMatches, settingsS.showFullPath); // searching the file while removing the quotes and checking the settings 
 
-				sHistoryFile[historyNumber] = allFiles[i]; // saving the history 
-				sHistoryKeyword[historyNumber] = keyword;
-				aTotalMatches[historyNumber] = totalMatches;
+
+				history.push_back({ allFiles[i], input.keyword, totalMatches });//adding it to history vector
 
 				historyNumber++;
 
 				grandTotalMatches += totalMatches;
 
-				writeHistory(historyFile, allFiles[i], keyword, totalMatches);
+				writeHistory(historyFile, allFiles[i], input.keyword, totalMatches);//adding it to history.txt file
 			}
 
 			cout << "In total \033[1;36m" << grandTotalMatches << "\033[0m matches were found\n";
