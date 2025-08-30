@@ -8,20 +8,20 @@
 
 std::string changeToLowerCase(const std::string input); // these are used in other functions hence its important to define them here
 std::ofstream deleteData(const std::string& fileName);
-bool checkFile(std::string fileName);
+bool fileOpened(std::string fileName);
 
 
 std::ifstream writeSettings(const std::string& fileName, int settingChange, bool caseSenstive, bool wholeWord, bool showWholePath) // to change the setting
 {
 	std::ifstream inFile(fileName);
 
-	const int noOfSettings{3}; 
+	const int noOfSettings{ 3 };
 
 	std::string line;
 	std::string file[noOfSettings]; // if the array was larger than needed than that would lead to empty lines in the txt file 
 	int i{};
 
-	if (!checkFile(fileName))
+	if (!fileOpened(fileName))
 	{
 		return inFile;
 	}
@@ -32,7 +32,7 @@ std::ifstream writeSettings(const std::string& fileName, int settingChange, bool
 		i++;
 	}
 
-	if (settingChange == 1) 
+	if (settingChange == 1)
 	{
 		if (caseSenstive)
 		{
@@ -62,7 +62,7 @@ std::ifstream writeSettings(const std::string& fileName, int settingChange, bool
 	{
 		if (showWholePath)
 		{
-			file[2] = "show full path - no"; 
+			file[2] = "show full path - no";
 		}
 		else
 		{
@@ -80,6 +80,8 @@ std::ifstream writeSettings(const std::string& fileName, int settingChange, bool
 
 	std::ofstream outFile(fileName);
 
+	//we are basically taking all the previous data from txt file and putting it in an array
+
 	deleteData(fileName);
 
 	for (int i{}; i < noOfSettings; i++) //writing array back into the txt file
@@ -91,6 +93,7 @@ std::ifstream writeSettings(const std::string& fileName, int settingChange, bool
 	return inFile;
 }
 
+
 // Function to create and return an ifstream (read mode)
 std::ifstream readFile(const std::string& fileName)
 {
@@ -98,8 +101,9 @@ std::ifstream readFile(const std::string& fileName)
 	std::string myText;
 
 	std::ifstream inFile(fileName); // Open the file for reading
-	if (!checkFile(fileName))
+	if (!fileOpened(fileName))
 	{
+		return inFile;
 	}
 
 	while (std::getline(inFile, myText))
@@ -112,7 +116,7 @@ std::ifstream readFile(const std::string& fileName)
 	return inFile;
 }
 
-bool checkFile(std::string fileName) // just a function to tell if the file was opened successfully 
+bool fileOpened(std::string fileName) // just a function to tell if the file was opened successfully 
 {
 	std::ifstream inFile(fileName);
 
@@ -125,9 +129,8 @@ bool checkFile(std::string fileName) // just a function to tell if the file was 
 	inFile.close();
 	return true;
 }
-bool isWordChar(char c) {
-	return std::isalnum(static_cast<unsigned char>(c)) || c == '-';
-}
+
+
 std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSenstive, bool wholeWord, int& totalMatches, bool showFullPath)
 {
 	std::ifstream inFile(fileName);
@@ -135,13 +138,13 @@ std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSen
 	std::string fileNameT;
 	std::string keyword2;
 
-	fileNameT = fileName;
+	fileNameT = fileName; //only name of file
 
 	bool found = false;
 	int i{};
 	totalMatches = 0;
 
-	if (!checkFile(fileName))
+	if (!fileOpened(fileName))
 	{
 		return inFile;
 	}
@@ -150,9 +153,10 @@ std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSen
 
 	else
 	{
-		while (true) {
+		while (true)
+		{
 			size_t pos = fileNameT.find("\\");
-			if (pos == std::string::npos) break; // stop safely
+			if (pos == std::string::npos) break; 
 			fileNameT.erase(0, pos + 1);
 		}
 		std::cout << "The following instances of \033[34m" << keyword << "\033[0m were found in the file \033[34m" << fileNameT << "\033[0m\n";
@@ -310,6 +314,7 @@ std::ifstream searchFile(std::string fileName, std::string keyword, bool caseSen
 
 	return inFile;
 }
+
 std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wholeWord, bool& showFullPath)
 {
 	std::string line;
@@ -319,7 +324,7 @@ std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wh
 	wholeWord = true;
 	showFullPath = false;
 
-	if (!checkFile(fileName))
+	if (!fileOpened(fileName))
 	{
 
 		return file;
@@ -340,7 +345,7 @@ std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wh
 		{
 			wholeWord = false;
 		}
-		
+
 		if (line.find("yes") != std::string::npos)
 		{
 			showFullPath = true;
@@ -354,7 +359,8 @@ std::ifstream settings(const std::string& fileName, bool& caseSenstive, bool& wh
 	return file;
 }
 
-void extractHistoryEntry(const std::string& line, std::string& keyword, std::string& filename, int& totalMatches) {
+void extractHistoryEntry(const std::string& line, std::string& keyword, std::string& filename, int& totalMatches)
+{
 	std::stringstream ss(line);
 	std::string temp;
 
@@ -377,28 +383,29 @@ void extractHistoryEntry(const std::string& line, std::string& keyword, std::str
 		{
 			std::string numberStr = temp.substr(eqPos + 1);
 			trim(numberStr);
-			try 
+			try
 			{
 				totalMatches = std::stoi(numberStr);
 			}
-			catch (...) 
+			catch (...)
 			{
 				totalMatches = 0; // fallback if conversion fails
 			}
 		}
-		else 
+		else
 		{
 			totalMatches = 0; // fallback if '=' not found
 		}
 	}
 
-	
+
 }
+
 std::ofstream writeHistory(std::string& fileName, std::string sHistoryKeyword, std::string sHistoryFile, int aTotalMatches)
 {
 	std::ofstream file(fileName, std::ios::app);
 
-	checkFile(fileName);
+	fileOpened(fileName);
 
 	file << sHistoryFile << " - " << sHistoryKeyword << " - total matches = " << aTotalMatches << '\n';
 
@@ -411,7 +418,7 @@ std::ofstream deleteData(const std::string& fileName)
 
 	std::ofstream file(fileName);
 
-	if (!checkFile(fileName))
+	if (!fileOpened(fileName))
 	{
 		return file;
 	}
